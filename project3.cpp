@@ -12,6 +12,8 @@ class CPUJob {
 
         CPUJob();
         CPUJob(int job_id, int priority, int job_type, int cpu_time_consumed, int memory_consumed);
+
+        void display();
 };
 
 CPUJob::CPUJob(){
@@ -30,6 +32,9 @@ CPUJob::CPUJob(int job_id, int priority, int job_type, int cpu_time_consumed, in
     this->memory_consumed = memory_consumed;
 }
 
+void CPUJob::display() {
+    cout << "Job ID: " << job_id << ", Priority: " << priority << ", Job Type: " << job_type << ", CPU Time Consumed: " << cpu_time_consumed << ", Memory Consumed: " << memory_consumed << endl;
+}
 
 template<class DT>
 class Queue{
@@ -76,8 +81,15 @@ class NovelQueue {
 
             NovelQueue();
 
-            void Enqueue(DT* JobPointer);
-            DT* Dequeue();
+            void enqueue(DT* JobPointer);
+            DT* dequeue();
+            void modify(int job_id, int new_priority, int new_job_type, int new_cpu_time_consumed, int new_memory_consumed);
+            void change(int job_id, int new_priority, int field_index, int new_value); //new Value??
+            void promote(int job_id, int positions);
+            void reorder(int attribute_index);
+            int count();
+            void listJobs();
+
 };
 
 template<class DT>
@@ -88,7 +100,7 @@ NovelQueue<DT>::NovelQueue() {
 };
 
 template <class DT>
-void NovelQueue<DT>::Enqueue(DT* JobPointer) {
+void NovelQueue<DT>::enqueue(DT* JobPointer) {
     if(!front) {
         front = new Queue<DT>(JobPointer);
         rear = front;
@@ -102,7 +114,7 @@ void NovelQueue<DT>::Enqueue(DT* JobPointer) {
 }
 
 template <class DT>
-DT* NovelQueue<DT>::Dequeue() {
+DT* NovelQueue<DT>::dequeue() {
     if(front == nullptr) {
         cout << "Queue is empty" << endl;
         return nullptr;
@@ -129,6 +141,7 @@ int main() {
 
     // Variables for job attributes
     int job_id, priority, job_type, cpu_time_consumed, memory_consumed;
+    int new_priority, new_job_type, new_cpu_time_consumed, new_memory_consumed;
 
     for (int i = 0; i < n; ++i) {
         cin >> command; // Read the command
@@ -136,21 +149,20 @@ int main() {
             case 'A': { // Add a job to the queue
                 cin >> job_id >> priority >> job_type >> cpu_time_consumed >> memory_consumed;
                 CPUJob* newJob = new CPUJob(job_id, priority, job_type, cpu_time_consumed, memory_consumed);
-                myNovelQueue->Enqueue(newJob);
+                myNovelQueue->enqueue(newJob);
                 break;
             }
             case 'R': {
-                CPUJob* dequeuedJob = myNovelQueue->Dequeue();
+                CPUJob* dequeuedJob = myNovelQueue->dequeue();
                 if (dequeuedJob) {
                     //need displat function
-                    cout << "Job ID: " << dequeuedJob->job_id << endl;
-                    cout << "Priority: " << dequeuedJob->priority << endl;
-                    cout << "Job Type: " << dequeuedJob->job_type << endl;
-                    cout << "CPU Time Consumed: " << dequeuedJob->cpu_time_consumed << endl;
-                    cout << "Memory Consumed: " << dequeuedJob->memory_consumed << endl;
+                    dequeuedJob->display();
                     delete dequeuedJob;
                 }
                 break;
+            }
+            case 'M': {
+                cin >> job_id >> new_priority >> new_job_type >> new_cpu_time_consumed >> new_memory_consumed;
             }
         }   
     }
