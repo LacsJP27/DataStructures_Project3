@@ -130,7 +130,7 @@ class NovelQueue {
             void enqueue(DT* JobPointer);
             DT* dequeue();
             void modify(int job_id, int new_priority, int new_job_type, int new_cpu_time_consumed, int new_memory_consumed);
-            void change(int job_id, int new_priority, int field_index, int new_value); //new Value??
+            void change(int job_id, int field_index, int new_value); //new Value??
             void promote(int job_id, int positions);
             void reorder(int attribute_index);
             int count();
@@ -274,54 +274,108 @@ void NovelQueue<DT>::promote(int job_id, int positions) {
         cout << "Job not found" << endl;
         return;
     }
-    // cout << current->JobPointer->job_id<< "********" << endl;
-    // cout << current->next->JobPointer->job_id << endl;
+   
     promoteNodeHelper(current, positions);
-    cout << front->JobPointer->job_id << endl;
 }
 
 template <class DT>
 void NovelQueue<DT>::promoteNodeHelper(Queue<DT>* node, int positions) {
-    cout << "Current Node: " << node->JobPointer->job_id << " " << positions << endl;
-    if(positions <= 0 || node->JobPointer->job_id == front->JobPointer->job_id){
-        cout << "final promotion" << endl;
+    if(positions <= 0 || node == front){
         return;
     }
-    Queue<DT>*prevNode = nullptr;
-    Queue<DT>* nextNode = nullptr;
-    if(node->previous != nullptr){
-        prevNode = new Queue<DT>(node->previous);
-        prevNode->next = nextNode;
+    Queue<DT>*prevNode = node->previous;
+    Queue<DT>* nextNode = node->next;
+
+    //detach the node from the current position
+    if(prevNode != nullptr){
+        prevNode->next = nextNode; //link previous node to next node
     }
-    if(node->next != nullptr){
-       nextNode = new Queue<DT>(node->next);
-       node->next = nextNode->next;
-       cout << "Next Temp Node: " << nextNode->JobPointer->job_id << endl;
-       nextNode->previous = prevNode;
-       cout << "Next Temp Node Previous: " << nextNode->previous->JobPointer->job_id << endl;
-       nextNode->next = node;
-       cout << "Next Temp Node Next: " << nextNode->next->JobPointer->job_id << endl;
+    if(nextNode != nullptr){
+        nextNode->previous = prevNode; //link next node to previous node
+    }
+
+    //if node was at the rear update the rear pointer
+    if(node == rear){
+        rear = prevNode;
     }
     
+    Queue<DT>* afterNext = nextNode->next;
+    node->next = afterNext;
     node->previous = nextNode;
-    cout << "Previous Node: " << node->previous->JobPointer->job_id << endl;
-    
-    cout << "Next Node: " << node->next->JobPointer->job_id << endl;
-    if(node->next == nullptr){
-        cout<< "node next is null" << endl;
-        front = node;
+
+    if(afterNext != nullptr){
+        afterNext->previous = node;
     }
-    if(node->previous == nullptr){
-        rear = node;
+    else{
+        front = node; //if node is doesn't have a next node then it is the front
     }
-    cout << "Front Node: " << front->JobPointer->job_id << endl;
 
     promoteNodeHelper(node, positions - 1);
 }
 
+/***MODIFY******************* */
+
 template <class DT>
 void NovelQueue<DT>::modify(int job_id, int new_priority, int new_job_type, int new_cpu_time_consumed, int new_memory_consumed) {
+    DT* targetJob = binarySearchJob(job_id, 0, size - 1);
+    if(targetJob == nullptr){
+        cout << "Job not found" << endl;
+        return;
+    }
+    targetJob->priority = new_priority;
+    targetJob->job_type = new_job_type;
+    targetJob->cpu_time_consumed = new_cpu_time_consumed;
+    targetJob->memory_consumed = new_memory_consumed;
+    targetJob->display();
+}
 
+template <class DT>
+void NovelQueue<DT>::change(int job_id, int field_index, int value) {
+    DT* targetJob = binarySearchJob(job_id, 0, size - 1);
+    cout << "Change Job ID: " << job_id << " field " << field_index << " to " << value << endl;
+    if(targetJob == nullptr){
+        cout << "Job not found" << endl;
+        return;
+    }
+    switch(field_index){
+        case 1:
+            targetJob->priority = value;
+            break;
+        case 2:
+            targetJob->job_type = value;
+            break;
+        case 3:
+            targetJob->cpu_time_consumed = value;
+            break;
+        case 4:
+            targetJob->memory_consumed = value;
+            break;
+        default:
+            cout << "Invalid field index" << endl;
+    }
+}
+
+/***** REORDER***************** */
+template <class DT>
+void NovelQueue<DT>::reorder(int attribute_index) {
+    if(attribute_index < 1 || attribute_index > 4){
+        cout << "Invalid attribute index" << endl;
+        return;
+    }
+    switch(attribute_index){
+        case 1:
+            //sort by priority
+            break;
+        case 2:
+            //sort by job type
+            break;
+        case 3:
+            //sort by cpu time consumed
+            break;
+        case 4:
+            //sort by memory consumed
+            break;
+    }
 }
 
 /*******ADDITIONAL METHODS********************* */
@@ -352,8 +406,6 @@ void NovelQueue<DT>::sortJobsByID() {
     }
     bool swapped;
     for(int i = 0; i < size -1; ++i) {
-        if((NodePtrs[i]->JobPointer->job_id) == -1){
-        } 
         swapped = false;
         for(int j = 0; j < size - i - 1; ++j) {
             
@@ -413,10 +465,10 @@ int main() {
                 cin >> job_id >> priority >> job_type >> cpu_time_consumed >> memory_consumed;
                 CPUJob* newJob = new CPUJob(job_id, priority, job_type, cpu_time_consumed, memory_consumed);
                 myNovelQueue->enqueue(newJob);
-                // cout<< "Enqueued Job: " << endl;
-                // newJob->display();
-                // cout << "Jobs after enqueue:" << endl;
-                // myNovelQueue->display();
+                cout<< "Enqueued Job: " << endl;
+                newJob->display();
+                cout << "Jobs after enqueue:" << endl;
+                myNovelQueue->display();
                 break;
             }
             case 'R': {
@@ -424,8 +476,8 @@ int main() {
                 CPUJob* dequeuedJob = myNovelQueue->dequeue();
                 if (dequeuedJob) {
                     //need displat function
-                    // dequeuedJob->display();
-                    // cout << "Dequeued job: " << dequeuedJob->job_id << endl;
+                    dequeuedJob->display();
+                    cout << "Dequeued job: " << dequeuedJob->job_id << endl;
                     delete dequeuedJob;
                 }
                 break;
@@ -434,6 +486,23 @@ int main() {
                 cout << "Promoting a job" << endl;
                 cin >> job_id >> positions;
                 myNovelQueue->promote(job_id, positions);
+                myNovelQueue->display();
+                break;
+            }
+            case 'M': {
+                cin >> job_id >> new_priority >> new_job_type >> new_cpu_time_consumed >> new_memory_consumed;
+                cout << "Modified Job ID: " << job_id << endl;
+                myNovelQueue->modify(job_id, new_priority, new_job_type, new_cpu_time_consumed, new_memory_consumed);
+                cout << "Jobs after modification:" << endl;
+                myNovelQueue->display();
+                break;
+            }
+            case 'C': {
+                cin >> job_id;
+                int field_index, new_value;
+                cin >> field_index >> new_value;
+                myNovelQueue->change(job_id, field_index, new_value);
+                cout << "Jobs after changing field:" << endl;
                 myNovelQueue->display();
                 break;
             }
@@ -458,4 +527,7 @@ int main() {
  * LLM create a destructor for the CPU (doesn't need one since only prim data types)
  * LLM For the enqueue method in project3.cpp, I want enqueue like I am already doing, but I also want to update the NodePtrs array with the new JobPointer.
  * LLM How do i create a sort method for NovelQueue that sorts the nodePtrs array by job_id in increasing order
+ * LLM I am getting an error with this code segment. I am trying to promote a node towards the front of a queue with a given number of positions. Can you find an error in my method?
+ *     I was not updating the front pointer correctly, and I was creating duplicate pointers when it wasn't necessary.
+ * 
  */
