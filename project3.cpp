@@ -35,6 +35,8 @@ CPUJob::CPUJob(int job_id, int priority, int job_type, int cpu_time_consumed, in
 
 void CPUJob::display() {
     cout << "Job ID: " << job_id << ", Priority: " << priority << ", Job Type: " << job_type << ", CPU Time Consumed: " << cpu_time_consumed << ", Memory Consumed: " << memory_consumed << endl;
+    // cout << "Job ID: " << job_id << ", Priority: " << priority << ", Job Type: " << job_type << ", CPU Time Consumed: " << cpu_time_consumed << endl;
+    // Job ID: 112, Priority: 6, Job Type: 3, CPU Time Consumed: 340, Memory Consumed: 1024
 }
 
 CPUJob* CPUJob::operator=(CPUJob* job){
@@ -127,7 +129,7 @@ class NovelQueue {
 
             NovelQueue<DT>* operator=(NovelQueue<DT>* nq);
 
-            void enqueue(DT* JobPointer);
+            bool enqueue(DT* JobPointer);
             DT* dequeue();
             void modify(int job_id, int new_priority, int new_job_type, int new_cpu_time_consumed, int new_memory_consumed);
             void change(int job_id, int field_index, int new_value); //new Value??
@@ -139,7 +141,7 @@ class NovelQueue {
 
             // additional methods
             DT* binarySearchJob(int job_id, int left, int right);
-            void sortJobsByID();
+            void sortJobsByField(int field_index);
             void promoteNodeHelper(Queue<DT>* node, int positions);
 
 };
@@ -188,7 +190,13 @@ NovelQueue<DT>* NovelQueue<DT>::operator=(NovelQueue<DT>* dq) {
 /*******QUEUE METHODS********************* */
 
 template <class DT>
-void NovelQueue<DT>::enqueue(DT* JobPointer) {
+bool NovelQueue<DT>::enqueue(DT* JobPointer) {
+    if(binarySearchJob(JobPointer->job_id, 0, size - 1) != nullptr){
+        cout << "Job ID " << JobPointer->job_id << " already exists!" << endl;
+        return false;
+    }
+    cout<< "Enqueued Job: " << endl;
+    JobPointer->display();
     if(!front) {
         front = new Queue<DT>(JobPointer);
         rear = front;
@@ -198,8 +206,10 @@ void NovelQueue<DT>::enqueue(DT* JobPointer) {
     }
     else{
         //Enqueue the new job
+        
         Queue<DT>* temp = rear;
         rear = new Queue<DT>(JobPointer);
+
         temp->previous = rear;
         rear->next = temp;
 
@@ -213,6 +223,9 @@ void NovelQueue<DT>::enqueue(DT* JobPointer) {
         NodePtrs = tempNodePtrs;
         ++size;
     }
+    
+
+    return true;
 }
 
 template <class DT>
@@ -234,11 +247,9 @@ DT* NovelQueue<DT>::dequeue() {
         //Update the NodePtrs array
         Queue<DT>** tempNodePtrs = new Queue<DT>*[size - 1];
         
-        this->sortJobsByID();
+        this->sortJobsByField(1);
         DT* removedJob = binarySearchJob(JobPointer->job_id,0 , size - 1);
         removedJob->job_id = -1;
-
-        cout << JobPointer->job_id << endl;
 
         //j is for only incrementing if we find a job that is not -1
         int j = 0;
@@ -271,11 +282,16 @@ void NovelQueue<DT>::promote(int job_id, int positions) {
     }
 
     if(current == nullptr){
-        cout << "Job not found" << endl;
+        cout << "Job with ID "<< job_id <<" not found in the queue." << endl;
         return;
     }
    
     promoteNodeHelper(current, positions);
+
+    cout << "Promoted Job ID "<< job_id <<" by " << positions << " Position(s):" << endl;
+    current->JobPointer->display();
+    cout << "Jobs after promotion:" << endl;
+    this->display();
 }
 
 template <class DT>
@@ -295,8 +311,8 @@ void NovelQueue<DT>::promoteNodeHelper(Queue<DT>* node, int positions) {
     }
 
     //if node was at the rear update the rear pointer
-    if(node == rear){
-        rear = prevNode;
+    if(rear == node){
+        rear = nextNode;
     }
     
     Queue<DT>* afterNext = nextNode->next;
@@ -327,16 +343,21 @@ void NovelQueue<DT>::modify(int job_id, int new_priority, int new_job_type, int 
     targetJob->cpu_time_consumed = new_cpu_time_consumed;
     targetJob->memory_consumed = new_memory_consumed;
     targetJob->display();
+
+    cout << "Jobs after modification:" << endl;
+    this->display();
 }
 
 template <class DT>
 void NovelQueue<DT>::change(int job_id, int field_index, int value) {
     DT* targetJob = binarySearchJob(job_id, 0, size - 1);
-    cout << "Change Job ID: " << job_id << " field " << field_index << " to " << value << endl;
     if(targetJob == nullptr){
-        cout << "Job not found" << endl;
+        cout << "Job with ID "<< job_id <<" not found in the queue." << endl;
         return;
     }
+    cout << "Changed Job ID " << job_id << " field " << field_index << " to " << value << ":" << endl;
+    
+
     switch(field_index){
         case 1:
             targetJob->priority = value;
@@ -353,29 +374,45 @@ void NovelQueue<DT>::change(int job_id, int field_index, int value) {
         default:
             cout << "Invalid field index" << endl;
     }
+    targetJob->display();
+    cout << "Jobs after changing field:" << endl;
+    this->display();
 }
 
 /***** REORDER***************** */
 template <class DT>
 void NovelQueue<DT>::reorder(int attribute_index) {
-    if(attribute_index < 1 || attribute_index > 4){
-        cout << "Invalid attribute index" << endl;
-        return;
+    sortJobsByField(attribute_index);
+    for(int i = 0; i < size; ++i){
+        if(i == 0){
+            front = NodePtrs[i];
+            NodePtrs[i]->next = nullptr;
+            if(size > 1) {
+                NodePtrs[i]->previous = NodePtrs[i + 1];
+            }
+            else {
+                NodePtrs[i]->previous = nullptr;
+                rear = NodePtrs[i];
+            }
+        
+        }
+        else if(i == size - 1){
+            rear = NodePtrs[i];
+            NodePtrs[i]->previous = nullptr;
+            NodePtrs[i]->next = NodePtrs[i - 1];
+        }
+        else {
+            NodePtrs[i]->next = NodePtrs[i - 1];
+            NodePtrs[i]->previous = NodePtrs[i + 1];
+        }
     }
-    switch(attribute_index){
-        case 1:
-            //sort by priority
-            break;
-        case 2:
-            //sort by job type
-            break;
-        case 3:
-            //sort by cpu time consumed
-            break;
-        case 4:
-            //sort by memory consumed
-            break;
-    }
+}
+
+/***COUNT ***** */
+template <class DT>
+int NovelQueue<DT>::count() {
+    cout << "Number of elements in the queue: " << size << endl;
+    return size;
 }
 
 /*******ADDITIONAL METHODS********************* */
@@ -400,21 +437,43 @@ DT* NovelQueue<DT>::binarySearchJob(int job_id, int left, int right) {
 }
 
 template <class DT>
-void NovelQueue<DT>::sortJobsByID() {
+void NovelQueue<DT>::sortJobsByField(int field_index) {
+    if(field_index < 1 || field_index > 5){
+        cout << "Invalid field index" << endl;
+        return;
+    }
     if(size <= 1){
         return;
     }
+
     bool swapped;
     for(int i = 0; i < size -1; ++i) {
         swapped = false;
         for(int j = 0; j < size - i - 1; ++j) {
-            
-            if((NodePtrs[j]->JobPointer->job_id) > NodePtrs[j + 1]->JobPointer->job_id){
-            //Swap the pointers
-            Queue<DT>* temp = NodePtrs[j];
-            NodePtrs[j] = NodePtrs[j + 1];
-            NodePtrs[j + 1] = temp;
-            swapped = true;
+            bool shouldSwap = false;
+            switch(field_index) {
+                case 1:
+                    shouldSwap = (NodePtrs[j]->JobPointer -> job_id) > (NodePtrs[j + 1] -> JobPointer -> job_id);
+                    break;
+                 case 2:
+                    shouldSwap = (NodePtrs[j]->JobPointer->priority > NodePtrs[j + 1]->JobPointer->priority);
+                    break;
+                case 3:
+                    shouldSwap = (NodePtrs[j]->JobPointer->job_type > NodePtrs[j + 1]->JobPointer->job_type);
+                    break;
+                case 4:
+                    shouldSwap = (NodePtrs[j]->JobPointer->cpu_time_consumed > NodePtrs[j + 1]->JobPointer->cpu_time_consumed);
+                    break;
+                case 5:
+                    shouldSwap = (NodePtrs[j]->JobPointer->memory_consumed > NodePtrs[j + 1]->JobPointer->memory_consumed);
+                    break;
+            }
+            if(shouldSwap){
+                //Swap the pointers
+                Queue<DT>* temp = NodePtrs[j];
+                NodePtrs[j] = NodePtrs[j + 1];
+                NodePtrs[j + 1] = temp;
+                swapped = true;
             }
         }
         if(!swapped){
@@ -437,7 +496,7 @@ void NovelQueue<DT>::display(){
 
 template <class DT>
 void NovelQueue<DT>::listJobs() {
-    this->sortJobsByID();
+    this->sortJobsByField(1);
     
     for(int i = 0; i < size; ++i){
         NodePtrs[i]->JobPointer->display();
@@ -460,41 +519,41 @@ int main() {
 
     for (int i = 0; i < n; ++i) {
         cin >> command; // Read the command
+
         switch(command) {
             case 'A': { // Add a job to the queue
                 cin >> job_id >> priority >> job_type >> cpu_time_consumed >> memory_consumed;
                 CPUJob* newJob = new CPUJob(job_id, priority, job_type, cpu_time_consumed, memory_consumed);
-                myNovelQueue->enqueue(newJob);
-                cout<< "Enqueued Job: " << endl;
-                newJob->display();
-                cout << "Jobs after enqueue:" << endl;
-                myNovelQueue->display();
+               
+                if(myNovelQueue->enqueue(newJob)){
+                    cout << "Jobs after enqueue:" << endl;
+                    myNovelQueue->display();
+                }
                 break;
             }
             case 'R': {
-                cout << "Dequeueing a job" << endl;
+                cout << "Dequeued Job: " << endl;
                 CPUJob* dequeuedJob = myNovelQueue->dequeue();
                 if (dequeuedJob) {
                     //need displat function
                     dequeuedJob->display();
-                    cout << "Dequeued job: " << dequeuedJob->job_id << endl;
                     delete dequeuedJob;
                 }
+                cout << "Jobs after dequeue:" << endl;
+                myNovelQueue->display();
                 break;
             }
             case 'P': {
-                cout << "Promoting a job" << endl;
                 cin >> job_id >> positions;
                 myNovelQueue->promote(job_id, positions);
-                myNovelQueue->display();
+
                 break;
             }
             case 'M': {
                 cin >> job_id >> new_priority >> new_job_type >> new_cpu_time_consumed >> new_memory_consumed;
-                cout << "Modified Job ID: " << job_id << endl;
+                cout << "Modified Job ID " << job_id << ":" << endl;
                 myNovelQueue->modify(job_id, new_priority, new_job_type, new_cpu_time_consumed, new_memory_consumed);
-                cout << "Jobs after modification:" << endl;
-                myNovelQueue->display();
+                
                 break;
             }
             case 'C': {
@@ -502,16 +561,37 @@ int main() {
                 int field_index, new_value;
                 cin >> field_index >> new_value;
                 myNovelQueue->change(job_id, field_index, new_value);
-                cout << "Jobs after changing field:" << endl;
+                
+                break;
+            }
+            case 'O': {
+                
+                int field_index;
+
+                cin >> field_index;
+                cout << "Reordered Queue by attribute " << field_index << ":" << endl;
+
+                myNovelQueue->reorder(field_index);
+                myNovelQueue->display();
+                break;
+            }
+            case 'N': {
+                myNovelQueue->count();
+                break;
+            }
+            case 'L' : {
+                cout << "List of jobs sorted by job IDs:" << endl; 
+                myNovelQueue->listJobs();
+                break;
+            }
+            case 'D': {
+                cout << "Displaying all jobs in the queue:" << endl;
                 myNovelQueue->display();
                 break;
             }
         }   
     }
-    // cout << "Displaying the queue" << endl;
-    // myNovelQueue->display();
-    // cout << "Listing jobs" << endl;
-    // myNovelQueue->listJobs();
+
     return 0;
 }
 
@@ -529,5 +609,6 @@ int main() {
  * LLM How do i create a sort method for NovelQueue that sorts the nodePtrs array by job_id in increasing order
  * LLM I am getting an error with this code segment. I am trying to promote a node towards the front of a queue with a given number of positions. Can you find an error in my method?
  *     I was not updating the front pointer correctly, and I was creating duplicate pointers when it wasn't necessary.
- * 
+ * LLM for the sortJobsByfield method I want to sort all the jobs based on the field_index. If the field index is 0, then the method should sort by job_id. If 1, it should sort by priority etc... I already have bubble sort for sorting by job_id. how do I implement this for the other fields?
+ * LLM I am trying to reorder my queue based on my new NodePtrs array after sorting based on an attribute index. However I think I'm creating an infinite queue. how do I fix this?
  */
